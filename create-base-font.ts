@@ -5,38 +5,58 @@ import { GameTree } from "./helpers/game-tree";
 const ADVANCE_WIDTH = 1000;
 const FONT_HEIGHT = 1000;
 
-// Generates a glyph with dots counting in binary
-function generatePlaceholderPath(counter: number) {
-    const path = new opentype.Path();
-
-    const counterBits = (counter | 0).toString(2).padStart(16, "0");
-    for (let y = 0; y < 4; y++) {
-        for (let x = 0; x < 4; x++) {
-            const bitIdx = y * 4 + x;
-
-            const halfWidth = counterBits[bitIdx] == "1" ? 75 : 40;
-
-            const centerX = 200 + (800 * x) / 4;
-            const centerY = 200 + (800 * y) / 4;
-
-            const box = new opentype.BoundingBox();
-            box.x1 = centerX - halfWidth;
-            box.y1 = centerY - halfWidth;
-            box.x2 = centerX + halfWidth;
-            box.y2 = centerY + halfWidth;
-
-            path.extend(box);
-        }
-    }
-
-    return path;
-}
-
 const STROKE_WIDTH = 30;
 const GRID_SPACE_WIDTH = 300;
 const GRID_SPACE_RADIUS = GRID_SPACE_WIDTH / 2;
 const SYMBOL_WIDTH = 200;
 const SYMBOL_RADIUS = SYMBOL_WIDTH / 2;
+
+function generateCircle(radius: number, cx: number, cy: number, counterClockwise: boolean) {
+    const invertFactor = counterClockwise ? -1 : 1;
+    const controlPointOffset = (4 / 3) * Math.tan(Math.PI / 8) * radius;
+
+    const path = new opentype.Path();
+
+    path.moveTo(cx, cy + radius);
+    // top right
+    path.bezierCurveTo(
+        cx + controlPointOffset * invertFactor,
+        cy + radius,
+        cx + radius * invertFactor,
+        cy + controlPointOffset,
+        cx + radius * invertFactor,
+        cy
+    );
+    // bottom right
+    path.bezierCurveTo(
+        cx + radius * invertFactor,
+        cy - controlPointOffset,
+        cx + controlPointOffset * invertFactor,
+        cy - radius,
+        cx,
+        cy - radius
+    );
+    // bottom left
+    path.bezierCurveTo(
+        cx - controlPointOffset * invertFactor,
+        cy - radius,
+        cx - radius * invertFactor,
+        cy - controlPointOffset,
+        cx - radius * invertFactor,
+        cy
+    );
+    // top left
+    path.bezierCurveTo(
+        cx - radius * invertFactor,
+        cy + controlPointOffset,
+        cx - controlPointOffset * invertFactor,
+        cy + radius,
+        cx,
+        cy + radius
+    );
+
+    return path;
+}
 
 function generateSymbolPath(x: 0 | 1 | 2, y: 0 | 1 | 2, symbol: "X" | "O") {
     const ox = 50 + x * 300;
@@ -74,51 +94,9 @@ function generateSymbolPath(x: 0 | 1 | 2, y: 0 | 1 | 2, symbol: "X" | "O") {
         path.close();
     } else {
         path = new opentype.Path();
-        function circle(radius: number, counterClockwise: boolean) {
-            const invertFactor = counterClockwise ? -1 : 1;
-            const controlPointOffset = (4 / 3) * Math.tan(Math.PI / 8) * radius;
 
-            path.moveTo(cx, cy + radius);
-            // top right
-            path.bezierCurveTo(
-                cx + controlPointOffset * invertFactor,
-                cy + radius,
-                cx + radius * invertFactor,
-                cy + controlPointOffset,
-                cx + radius * invertFactor,
-                cy
-            );
-            // bottom right
-            path.bezierCurveTo(
-                cx + radius * invertFactor,
-                cy - controlPointOffset,
-                cx + controlPointOffset * invertFactor,
-                cy - radius,
-                cx,
-                cy - radius
-            );
-            // bottom left
-            path.bezierCurveTo(
-                cx - controlPointOffset * invertFactor,
-                cy - radius,
-                cx - radius * invertFactor,
-                cy - controlPointOffset,
-                cx - radius * invertFactor,
-                cy
-            );
-            // top left
-            path.bezierCurveTo(
-                cx - radius * invertFactor,
-                cy + controlPointOffset,
-                cx - controlPointOffset * invertFactor,
-                cy + radius,
-                cx,
-                cy + radius
-            );
-        }
-
-        circle(SYMBOL_RADIUS, false);
-        circle(SYMBOL_RADIUS - STROKE_WIDTH, true);
+        path.extend(generateCircle(SYMBOL_RADIUS, cx, cy, false));
+        path.extend(generateCircle(SYMBOL_RADIUS - STROKE_WIDTH, cx, cy, true));
     }
 
     return path;
@@ -272,10 +250,47 @@ function generateBoardPath(boardData: ("" | "X" | "O")[]) {
     return path;
 }
 
+// Used for .notdef
+// I drew this in Inkscape
+// But I don't know how to use Inkscape very well, so it's janky
+function generateQuestionMark() {
+    const path = new opentype.Path();
+
+    path.moveTo(496, 593);
+    path.bezierCurveTo(483, 593, 473, 590, 451, 579);
+    path.bezierCurveTo(446, 577, 443, 571, 446, 566);
+    path.bezierCurveTo(448, 561, 454, 559, 459, 561);
+    path.bezierCurveTo(481, 571, 487, 573, 496, 573);
+    path.bezierCurveTo(500, 573, 507, 573, 512, 572);
+    path.bezierCurveTo(517, 570, 521, 568, 522, 567);
+    path.bezierCurveTo(526, 561, 529, 549, 527, 541);
+    path.bezierCurveTo(525, 535, 515, 520, 505, 511);
+    path.bezierCurveTo(499, 507, 496, 504, 492, 500);
+    path.bezierCurveTo(488, 496, 485, 491, 483, 484);
+    path.bezierCurveTo(480, 472, 481, 464, 481, 463);
+    path.bezierCurveTo(481, 458, 484, 453, 490, 452);
+    path.bezierCurveTo(495, 451, 499, 456, 501, 461);
+    path.bezierCurveTo(502, 468, 500, 470, 502, 479);
+    path.bezierCurveTo(504, 484, 504, 484, 506, 486);
+    path.bezierCurveTo(508, 488, 512, 491, 518, 496);
+    path.bezierCurveTo(530, 507, 543, 521, 546, 537);
+    path.bezierCurveTo(549, 551, 547, 567, 538, 578);
+    path.bezierCurveTo(533, 586, 525, 589, 517, 591);
+    path.bezierCurveTo(509, 593, 502, 593, 496, 593);
+    path.close();
+
+    path.extend(generateCircle(12, 492, 410, false));
+
+    return path;
+}
+
+const notdefPath = generateGrid();
+notdefPath.extend(generateQuestionMark());
+
 const notdefGlyph = new opentype.Glyph({
     name: ".notdef",
     unicode: 0,
-    path: generatePlaceholderPath(65535),
+    path: notdefPath,
     advanceWidth: 1000,
 });
 
